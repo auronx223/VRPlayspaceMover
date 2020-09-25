@@ -13,6 +13,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <csignal>
+#include <OVR_CAPI.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -63,6 +64,13 @@ static uint32_t rightFootID;
 static float bodyHeight;
 static bool orbitTracker;
 static bool physicsToggleChanged;
+
+static glm::vec3 oculusPosOffset;
+static glm::quat oculusRotOffset;
+static bool hasOculusOffset;
+static bool useOculus;
+static bool restartOculusSession;
+static int frameindex = 0;
 
 void Help() {
     std::cout << "PlayspaceMover " << PLAYSPACE_MOVER_VERSION << "\n";
@@ -190,22 +198,7 @@ void updatePositions() {
             deviceLastPos[deviceIndex] = devicePos[deviceIndex];
             devicePos[deviceIndex] = glm::vec3(poseMat->m[0][3], poseMat->m[1][3], poseMat->m[2][3]);
         }
-    }
-	//vr::VRCompositor()->WaitGetPoses(devicePoses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-
-	/*vr::VRCompositor()->SetTrackingSpace(vr::TrackingUniverseRawAndUncalibrated);
-	vr::VRCompositor()->WaitGetPoses(devicePoses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-    for (uint32_t deviceIndex = 0; deviceIndex < vr::k_unMaxTrackedDeviceCount; deviceIndex++) {
-        if (!vr::VRSystem()->IsTrackedDeviceConnected(deviceIndex)) {
-            continue;
-        }
-        vr::TrackedDevicePose_t* pose = devicePoses + deviceIndex;
-        vr::HmdMatrix34_t* poseMat = &(pose->mDeviceToAbsoluteTracking);
-        if (pose->bPoseIsValid && pose->bDeviceIsConnected) {
-            deviceLastPos[deviceIndex] = devicePos[deviceIndex];
-            devicePos[deviceIndex] = glm::vec3(poseMat->m[0][3], poseMat->m[1][3], poseMat->m[2][3]);
-        }
-    }*/
+    }	
 }
 
 // Checks that every individual button in mask is pressed, when compared to button.
@@ -309,7 +302,7 @@ void move() {
         devicePos[deviceIndex] = newpos;
         glm::vec3 delta = deviceBaseOffsets[deviceIndex];
         // Virtual devices need to be moved half as much, don't ask me why
-        if (isVirtualDevice(deviceIndex)) {
+        if(deviceIndex > 4){//if (isVirtualDevice(deviceIndex)) { // isVirtualDevice method isn't working correctly, flagging 1 or 2 of the created devices as virtual
 			delta += (newpos - oldpos)*.5f;
         } else {
 			delta += (newpos - oldpos);
@@ -443,9 +436,41 @@ bool findTrackers() {
 uint32_t createTracker() {
 	uint32_t id = inputEmulator.getVirtualDeviceCount();
 	inputEmulator.addVirtualDevice(vrinputemulator::VirtualDeviceType::TrackedController, std::to_string(id), false);
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_TrackingSystemName_String,					"lighthouse");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_ModelNumber_String,							"Vive Controller MV");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_RenderModelName_String,						"vr_controller_vive_1_5");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_TrackingSystemName_String, "oculus");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_ModelNumber_String, "Vive Tracker");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_RenderModelName_String, "{htc}vr_tracker_vive_1_0");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_WillDriftInYaw_Bool, false);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_ManufacturerName_String, "HTC");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_TrackingFirmwareVersion_String, "1465809478 htcvrsoftware@firmware-win32 2016-06-13 FPGA 1.6/0/0 VRC 1465809477 Radio 1466630404");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_HardwareRevision_String, "product 129 rev 1.5.0 lot 2000/0/0 0");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_DeviceIsWireless_Bool, true);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_HardwareRevision_Uint64, (uint64_t)2164327680);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_FirmwareVersion_Uint64, (uint64_t)1465809478);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_DeviceClass_Int32, 3);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_SupportedButtons_Uint64, (uint64_t)12884901895);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis0Type_Int32, 1);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis1Type_Int32, 3);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis2Type_Int32, 0);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis3Type_Int32, 0);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis4Type_Int32, 0);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_IconPathName_String, "icons");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceOff_String, "{htc}tracker_status_off.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceSearching_String, "{htc}tracker_status_searching.gif");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceSearchingAlert_String, "{htc}tracker_status_alert.gif");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceReady_String, "{htc}tracker_status_ready.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceNotReady_String, "{htc}tracker_status_error.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceStandby_String, "{htc}tracker_status_standby.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceAlertLow_String, "{htc}tracker_status_ready_low.png");
+	inputEmulator.publishVirtualDevice(id);
+	return id;
+}
+
+uint32_t createTracker(const char *renderDevice) {
+	uint32_t id = inputEmulator.getVirtualDeviceCount();
+	inputEmulator.addVirtualDevice(vrinputemulator::VirtualDeviceType::TrackedController, std::to_string(id), false);
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_TrackingSystemName_String,					"oculus");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_ModelNumber_String,							"Vive Tracker");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_RenderModelName_String,						renderDevice);
 	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_WillDriftInYaw_Bool,						false);
 	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_ManufacturerName_String,					"HTC");
 	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_TrackingFirmwareVersion_String,				"1465809478 htcvrsoftware@firmware-win32 2016-06-13 FPGA 1.6/0/0 VRC 1465809477 Radio 1466630404");
@@ -461,15 +486,197 @@ uint32_t createTracker() {
 	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis3Type_Int32,							0);
 	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_Axis4Type_Int32,							0);
 	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_IconPathName_String,						"icons");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceOff_String,				"{htc}controller_status_off.png");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceSearching_String,		"{htc}controller_status_searching.gif");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceSearchingAlert_String,	"{htc}controller_status_alert.gif");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceReady_String,			"{htc}controller_status_ready.png");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceNotReady_String,			"{htc}controller_status_error.png");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceStandby_String,			"{htc}controller_status_standby.png");
-	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceAlertLow_String,			"{htc}controller_status_ready_low.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceOff_String,				"{htc}tracker_status_off.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceSearching_String,		"{htc}tracker_status_searching.gif");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceSearchingAlert_String,	"{htc}tracker_status_alert.gif");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceReady_String,			"{htc}tracker_status_ready.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceNotReady_String,			"{htc}tracker_status_error.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceStandby_String,			"{htc}tracker_status_standby.png");
+	inputEmulator.setVirtualDeviceProperty(id, vr::ETrackedDeviceProperty::Prop_NamedIconPathDeviceAlertLow_String,			"{htc}tracker_status_ready_low.png");
 	inputEmulator.publishVirtualDevice(id);
 	return id;
+}
+
+void updateOculusTrackers(ovrSession session) {
+	/*uint32_t HMDID = vr::k_unTrackedDeviceIndexInvalid;
+	for (uint32_t deviceIndex = 0; deviceIndex < vr::k_unMaxTrackedDeviceCount; deviceIndex++) {
+		if (!vr::VRSystem()->IsTrackedDeviceConnected(deviceIndex)) {
+			continue;
+		}
+		if (vr::VRSystem()->GetTrackedDeviceClass(deviceIndex) == vr::TrackedDeviceClass_HMD) {
+			HMDID = deviceIndex;
+			break;
+		}
+	}
+
+	if (HMDID == vr::k_unTrackedDeviceIndexInvalid) {
+		return;
+	}
+
+	vr::TrackedDevicePose_t* hmdPose = devicePoses + HMDID;
+	glm::mat3x4* hmdMat = (glm::mat3x4*) & (hmdPose->mDeviceToAbsoluteTracking);
+	glm::mat3x3 hmdRotMat = glm::mat3x3(*hmdMat);
+	if (hmdPose->bPoseIsValid && hmdPose->bDeviceIsConnected) {
+		glm::vec3 realHMDPos = (glm::inverse(offset) * glm::vec4(devicePos[HMDID], 1)).xyz();
+		glm::quat hmdRot = glm::inverse(glm::quat_cast(hmdRotMat));
+
+		glm::vec3 down;
+		glm::quat trackersRot;
+		glm::vec3 footRight;
+		glm::vec3 footForward;
+
+		if (orbitTracker) {
+			down = hmdRot * glm::vec3(0, -1, 0);
+			trackersRot = hmdRot;
+			footRight = trackersRot * glm::vec3(1, 0, 0);
+			footForward = trackersRot * glm::vec3(0, 0, 1);
+		}
+		else {
+			down = glm::vec3(0, -1, 0);
+			glm::vec3 headRight = hmdRot * glm::vec3(1, 0, 0);
+			headRight.y = 0;
+			trackersRot = glm::quatLookAt(glm::normalize(headRight), glm::vec3(0, 1, 0));
+			footRight = trackersRot * glm::vec3(0, 0, 1);
+			footForward = trackersRot * glm::vec3(-1, 0, 0);
+		}
+		glm::vec3 hipPos = realHMDPos + down * (bodyHeight / 2.f);
+		glm::vec3 leftFootPos = realHMDPos + down * bodyHeight + (footForward - footRight) * 0.17f;
+		glm::vec3 rightFootPos = realHMDPos + down * bodyHeight + (footForward + footRight) * 0.17f;
+		setVirtualDevicePosition(hipID, hipPos, trackersRot);
+		setVirtualDevicePosition(leftFootID, leftFootPos, trackersRot);
+		setVirtualDevicePosition(rightFootID, rightFootPos, trackersRot);
+	}*/
+
+	//ovrTrackingState ts = ovr_GetTrackingState(session, 0, true);
+	ovrTrackingState trackingState = ovr_GetTrackingState(session, ovr_GetTimeInSeconds(), true);
+	ovrPoseStatef leftControllerPose = trackingState.HandPoses[0]; //0 left, 1 right
+	ovrPoseStatef rightControllerPose = trackingState.HandPoses[1];
+
+	ovrPoseStatef vrObjectPose;
+	ovrTrackedDeviceType type = ovrTrackedDevice_Object0;
+	ovr_GetDevicePoses(session, &type, 1, 0, &vrObjectPose);
+
+	glm::vec3 hipPos;
+	glm::vec3 leftPos;
+	glm::vec3 rightPos;
+	//hipPos = glm::vec3(controllerPose.ThePose.Position.x, controllerPose.ThePose.Position.y, controllerPose.ThePose.Position.z);
+
+	hipPos = glm::vec3(vrObjectPose.ThePose.Position.x, vrObjectPose.ThePose.Position.y, vrObjectPose.ThePose.Position.z);
+	leftPos = glm::vec3(leftControllerPose.ThePose.Position.x, leftControllerPose.ThePose.Position.y, leftControllerPose.ThePose.Position.z);
+	rightPos = glm::vec3(rightControllerPose.ThePose.Position.x, rightControllerPose.ThePose.Position.y, rightControllerPose.ThePose.Position.z);
+
+	glm::quat hipRot = glm::quat();
+	glm::quat leftRot = glm::quat();
+	glm::quat rightRot = glm::quat();
+
+	hipRot.x = vrObjectPose.ThePose.Orientation.x;
+	hipRot.y = vrObjectPose.ThePose.Orientation.y;
+	hipRot.z = vrObjectPose.ThePose.Orientation.z;
+	hipRot.w = vrObjectPose.ThePose.Orientation.w;
+
+	leftRot.x = leftControllerPose.ThePose.Orientation.x;
+	leftRot.y = leftControllerPose.ThePose.Orientation.y;
+	leftRot.z = leftControllerPose.ThePose.Orientation.z;
+	leftRot.w = leftControllerPose.ThePose.Orientation.w;
+
+	rightRot.x = rightControllerPose.ThePose.Orientation.x;
+	rightRot.y = rightControllerPose.ThePose.Orientation.y;
+	rightRot.z = rightControllerPose.ThePose.Orientation.z;
+	rightRot.w = rightControllerPose.ThePose.Orientation.w;
+
+	ovrInputState inputState;
+	ovr_GetInputState(session, ovrControllerType_LTouch, &inputState);
+	ovr_GetInputState(session, ovrControllerType_RTouch, &inputState);	
+
+
+
+
+	// Attempt to check if the tracking state is valid, and if so update tracking positions
+	if (trackingState.StatusFlags & (ovrStatus_OrientationTracked | ovrStatus_PositionTracked))
+	{
+		if (trackingState.HandStatusFlags[0] & (ovrStatus_OrientationTracked | ovrStatus_PositionTracked)) 
+		{
+			// Left controller is valid
+			setVirtualDevicePosition(leftFootID, leftPos, leftRot);
+		}
+
+		if (trackingState.HandStatusFlags[1] & (ovrStatus_OrientationTracked | ovrStatus_PositionTracked))
+		{
+			// Right controller is valid
+			setVirtualDevicePosition(rightFootID, rightPos, rightRot);
+		}
+
+		if (vrObjectPose.ThePose.Position.x != 0 && vrObjectPose.ThePose.Position.y != 0 && vrObjectPose.ThePose.Position.z != 0) 
+		{
+			// VR object is not 0 on all position axis, assume the tracking state is valid
+			setVirtualDevicePosition(hipID, hipPos, hipRot);
+		}		
+	}	
+
+	//ovrPosef  eyePoses[2];
+	//GetFrameHMDData(&frameIndex, eyePoses);
+	//ovrResult result = ovr_BeginFrame(session, frameindex);
+
+	//layer.RenderPose[0] = eyePoses[0];
+	//layer.RenderPose[1] = eyePoses[1];
+
+	// Execute actual rendering to eye textures.
+
+	// Submit frame with the one layer we have.
+	//ovrLayerHeader* layers = new ovrLayerHeader;
+
+	//result = ovr_EndFrame(session, frameindex, nullptr, &layers, 1);
+
+	//frameindex++;
+}
+
+void getOculusTrackingOffsets(ovrSession session) {
+	uint32_t HMDID = vr::k_unTrackedDeviceIndexInvalid;
+	for (uint32_t deviceIndex = 0; deviceIndex < vr::k_unMaxTrackedDeviceCount; deviceIndex++) {
+		if (!vr::VRSystem()->IsTrackedDeviceConnected(deviceIndex)) {
+			continue;
+		}
+		if (vr::VRSystem()->GetTrackedDeviceClass(deviceIndex) == vr::TrackedDeviceClass_HMD) {
+			HMDID = deviceIndex;
+			break;
+		}
+	}
+
+	if (HMDID == vr::k_unTrackedDeviceIndexInvalid) {
+		return;
+	}
+
+	vr::TrackedDevicePose_t* hmdPose = devicePoses + HMDID;
+	glm::mat3x4* hmdMat = (glm::mat3x4*) & (hmdPose->mDeviceToAbsoluteTracking);
+	glm::mat3x3 hmdRotMat = glm::mat3x3(*hmdMat);
+	if (hmdPose->bPoseIsValid && hmdPose->bDeviceIsConnected) {
+		glm::vec3 realHMDPos = (glm::inverse(offset) * glm::vec4(devicePos[HMDID], 1)).xyz();
+		glm::quat hmdRot = glm::inverse(glm::quat_cast(hmdRotMat));
+
+		ovrTrackingState ts = ovr_GetTrackingState(session, 0, true);
+		ovrPoseStatef controllerPose = ts.HandPoses[0]; //0 left, 1 right
+		glm::vec3 leftPos;
+		leftPos = glm::vec3(controllerPose.ThePose.Position.x, controllerPose.ThePose.Position.y, controllerPose.ThePose.Position.z);
+		glm::quat leftRot = glm::quat();
+
+		leftRot.x = controllerPose.ThePose.Orientation.x;
+		leftRot.y = controllerPose.ThePose.Orientation.y;
+		leftRot.z = controllerPose.ThePose.Orientation.z;
+		leftRot.w = controllerPose.ThePose.Orientation.w;
+
+		oculusRotOffset.x = hmdRot.x - leftRot.x;
+		oculusRotOffset.y = hmdRot.y - leftRot.y;
+		oculusRotOffset.z = hmdRot.z - leftRot.z;
+		oculusRotOffset.w = hmdRot.w - leftRot.w;
+
+		oculusPosOffset.x = realHMDPos.x - leftPos.x;
+		oculusPosOffset.y = realHMDPos.y - leftPos.y;
+		oculusPosOffset.z = realHMDPos.z - leftPos.z;
+
+		hasOculusOffset = true;
+
+		//hipID = createTracker();
+	}
 }
 
 void deleteVirtualDevice(int id) {
@@ -486,6 +693,13 @@ void onClose() {
 		deleteVirtualDevice(leftFootID);
 		deleteVirtualDevice(rightFootID);
 	}
+
+	if (useOculus) {
+		deleteVirtualDevice(hipID);
+		deleteVirtualDevice(leftFootID);
+		deleteVirtualDevice(rightFootID);
+	}
+
 	offset = glm::mat4x4(1);
 	velocity = glm::vec3(0);
 	move();
@@ -499,11 +713,15 @@ void signalHandler(int signum) {
 }
 
 #ifdef _WIN32
-BOOL WINAPI ConsoleHandler(DWORD CEvent) {
-	std::cerr << "Console window was closed, cleaning up...\n" << std::flush;
+BOOL WINAPI ConsoleHandler(DWORD CEvent) {	
 	if (CEvent == CTRL_CLOSE_EVENT) {
+		std::cerr << "Console window was closed, cleaning up...\n" << std::flush;
 		onClose();
 	}
+	else if (CEvent == CTRL_BREAK_EVENT) {
+		restartOculusSession = true;
+	}
+
 	return TRUE;
 }
 #endif
@@ -513,11 +731,11 @@ int app( int argc, const char** argv ) {
     options.add_options()
         ("h,help", "Prints help.")
         ("v,version", "Prints version.")
-        ("l,leftButtonMask", "Specifies the buttons that trigger the playspace grab.", cxxopts::value<unsigned long long >()->default_value("130"))
+        ("l,leftButtonMask", "Specifies the buttons that trigger the playspace grab.", cxxopts::value<unsigned long long >()->default_value("130")) //130
         ("r,rightButtonMask", "Specifies the buttons that trigger the playspace grab.", cxxopts::value<unsigned long long >()->default_value("130"))
         ("leftTogglePhysicsMask", "Specifies the buttons that toggle physics.", cxxopts::value<unsigned long long >()->default_value("0"))
         ("rightTogglePhysicsMask", "Specifies the buttons that toggle physics.", cxxopts::value<unsigned long long >()->default_value("0"))
-        ("resetButtonMask", "Specifies the buttons that trigger a playspace reset.", cxxopts::value<unsigned long long >()->default_value("0"))
+        ("resetButtonMask", "Specifies the buttons that trigger a playspace reset.", cxxopts::value<unsigned long long >()->default_value("2"))
         ("g,gravity", "Sets how intense gravity is in meters.", cxxopts::value<float>()->default_value("9.81"))
         ("f,friction", "Sets how much friction the ground applies. (Try values from 0 to 10.)", cxxopts::value<float>()->default_value("8"))
         ("airFriction", "Sets how much friction the air applies. (Try values from 0 to 10.)", cxxopts::value<float>()->default_value("0"))
@@ -609,12 +827,77 @@ int app( int argc, const char** argv ) {
 	signal(SIGINT, signalHandler);
     std::cout << "READY! Press CTRL+C with this window focused to quit.\n" << std::flush;
 
+	// Initialize Oculus
+	std::cout << "Looking for Oculus HMD\n";
+
+	useOculus = false;
+	ovrTrackingState ts;
+	ovrSession session = nullptr;
+
+	if (ovr_Initialize(nullptr) == ovrSuccess) {
+		
+		ovrGraphicsLuid luid;
+		ovrResult result = ovr_Create(&session, &luid);
+
+		if (result == ovrSuccess)
+		{   // Then we're connected to an HMD!
+			std::cout << "Found Oculus HMD\n";		
+
+			/*
+			* New SteamVR update has broken input emulator 
+			* https://github.com/matzman666/OpenVR-InputEmulator/issues/198
+			* A fix is required to input emulator or move away from input emulator and use my own solution
+			* https://github.com/pushrax/OpenVR-SpaceCalibrator/commit/8323d64b2d997c03bcfb3a8a82cbec4e630ad71c
+			*/
+			hipID = createTracker("{system}oculus_cv1_controller_left");			
+			leftFootID = createTracker("{system}oculus_cv1_controller_left");
+			rightFootID = createTracker("{system}oculus_cv1_controller_right");
+
+			useOculus = true;
+		} else {
+			std::cout << "Failed to find Oculus HMD\n";
+		}
+	}
+
     // Main loop
     bool running = true;
 	appliedImpulse = true;
 	auto lastTime = std::chrono::high_resolution_clock::now();
 	int numFramePresents = 0;
     while (running) {
+
+		if (useOculus) {
+			//ts = ovr_GetTrackingState(session, 0, true);
+			//ovrPoseStatef controllerPose = ts.HandPoses[0]; //0 left, 1 right
+
+			//ovrPoseStatef tempHeadPose = ts.HeadPose;
+			//ovrPosef tempPose = tempHeadPose.ThePose;
+			//ovrQuatf tempOrient = tempPose.Orientation;	
+		}
+		
+		if (restartOculusSession) {
+			// Restarting the session was requested try to renew
+			std::cout << "Starting new oculus session...\n";
+
+			ovr_Destroy(session);
+
+			if (ovr_Initialize(nullptr) == ovrSuccess) {
+
+				ovrGraphicsLuid luid;
+				ovrResult result = ovr_Create(&session, &luid);
+
+				if (result == ovrSuccess)
+				{   // Then we're connected to an HMD!
+					std::cout << "Success\n";
+				}
+				else {
+					std::cout << "Failed to find Oculus HMD\n";
+				}
+			}
+
+			restartOculusSession = false;
+		}
+
         if (vr::VRCompositor() != NULL) {
             vr::Compositor_FrameTiming t;
             t.m_nSize = sizeof(vr::Compositor_FrameTiming);
@@ -624,6 +907,10 @@ int app( int argc, const char** argv ) {
 			deltaTime = dt.count();
 			// If the frame has changed we update, if a frame was redisplayed we update.
             if ((hasFrame && currentFrame != t.m_nFrameIndex) || (hasFrame && t.m_nNumFramePresents != numFramePresents)) {
+				/*if (!hasOculusOffset) {
+					getOculusTrackingOffsets(session);
+				}*/
+
                 currentFrame = t.m_nFrameIndex;
 				numFramePresents = t.m_nNumFramePresents;
 				lastTime = currentTime;
@@ -631,23 +918,18 @@ int app( int argc, const char** argv ) {
                 updateVirtualDevices();
                 updatePositions();
                 updateOffset(leftButtonMask, rightButtonMask, resetButtonMask, leftTogglePhysicsButtonMask, rightTogglePhysicsButtonMask);
-				updateFakeTrackers();
+
+				if (useOculus) {
+					updateOculusTrackers(session);
+				} else {
+					updateFakeTrackers();
+				}	
+
 				collide();
                 move();
 
-                /*vr::ETrackedPropertyError errProp;
-                int microsecondWait;
-                float flDisplayFrequency = vr::VRSystem()->GetFloatTrackedDeviceProperty(0, vr::Prop_DisplayFrequency_Float, &errProp);
-                if (flDisplayFrequency) {
-                    float flSecondsPerFrame = 1.0f / flDisplayFrequency;
-                    microsecondWait = (int)(flSecondsPerFrame * 1000.f * 1000.f);
-                } else {
-                    microsecondWait = (int)(t.m_flCompositorIdleCpuMs*1000.f);
-                }
-                std::this_thread::sleep_for(std::chrono::microseconds(glm::clamp(microsecondWait, 11111, 22222)));*/
-
-				// Sleep for just under 1/90th of a second, so that maybe the next frame will be available.
-                std::this_thread::sleep_for(std::chrono::microseconds(10000));
+				// Sleep for just under 1/120th of a second, so that maybe the next frame will be available.
+                std::this_thread::sleep_for(std::chrono::microseconds(8333));
 			} else {
 				// Still waiting on the next frame, wait less this time.
                 std::this_thread::sleep_for(std::chrono::microseconds(1111));

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -23,7 +23,7 @@
     <ProjectGuid>{1D8D078A-61F0-4B32-B7AC-34B808D81972}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>PlayspaceMover</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -109,11 +109,13 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>E:\Users\Jamie\Documents\Visual Studio 2019\Projects\ovr_sdk_win_1.41.0\LibOVR\Include;E:\Users\Jamie\Documents\Visual Studio 2019\Projects\boost_1_70_0\boost_1_70_0;E:\Users\Jamie\Documents\Github\VRPlayspaceMover\third-party\glm-0.9.9-a2;E:\Users\Jamie\Documents\Github\VRPlayspaceMover\third-party\OpenVR-InputEmulator-1.3\OpenVR-InputEmulator-1.3\lib_vrinputemulator\include;E:\Users\Jamie\Documents\Github\VRPlayspaceMover\third-party\openvr-1.7.15\openvr-1.7.15\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>openvr_api.lib;libvrinputemulator-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>openvr_api.lib;libvrinputemulator-d.lib;LibOVR.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>E:\Users\Jamie\Documents\Visual Studio 2019\Projects\ovr_sdk_win_1.41.0\LibOVR\Lib\Windows\x64\Debug\VS2017;E:\Users\Jamie\Documents\Visual Studio 2019\Projects\boost_1_70_0\boost_1_70_0\bin.v2\libs\date_time\build\msvc-14.1\debug\address-model-64\link-static\threading-multi;E:\Users\Jamie\Documents\Github\VRPlayspaceMover\third-party\OpenVR-InputEmulator-1.3\OpenVR-InputEmulator-1.3\Debug\lib\x64;E:\Users\Jamie\Documents\Github\VRPlayspaceMover\third-party\openvr-1.7.15\openvr-1.7.15\lib\win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
