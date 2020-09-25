@@ -1,9 +1,9 @@
-# Playspace Mover
+# Playspace Mover with Oculus Fake Trackers
 
 Lets you drag around your playspace by gripping certain buttons. This allows you to "climb" around certain games, and allows you to adjust your floor level on the fly.
 This is compatible with KinectToVR, and can run in tandem with any SteamVR app.
 
-If you want to help support this kind of development, feel free to support me through google wallet (naelstrof@gmail.com), paypal (https://paypal.me/naelstrof), or through my [Digital Tip Jar](https://digitaltipjar.com/naelstrof)!
+This is a fork from https://github.com/matzman666/OpenVR-InputEmulator and is mostly for using Oculus Touch controllers as fake Vive trackers, rather than straight continuation of the original.
 
 # Oculus Trackers Support
 This is currently work in progress which allows the use of Oculus Trackers (CV1) to be used as if they are Vive trackers.
