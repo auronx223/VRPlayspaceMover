@@ -5,6 +5,11 @@ This is compatible with KinectToVR, and can run in tandem with any SteamVR app.
 
 If you want to help support this kind of development, feel free to support me through google wallet (naelstrof@gmail.com), paypal (https://paypal.me/naelstrof), or through my [Digital Tip Jar](https://digitaltipjar.com/naelstrof)!
 
+# Oculus Trackers Support
+This is currently work in progress which allows the use of Oculus Trackers (CV1) to be used as if they are Vive trackers.
+
+Currently the spaces are not calibrated and need to be done manually, either through guessing in Input Emulator driver offsets, or by using something like play space calibrator.
+
 ## Installation
 
 * Requires VR Input Emulator, which an easy installer can be found [here](https://github.com/matzman666/OpenVR-InputEmulator/releases).
